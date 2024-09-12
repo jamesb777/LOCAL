@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Grid Game - Minimalista Premium</title>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            background-color: #1c1c28;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+            height: 100vh;
+            margin: 0;
+            color: white;
+        }
+        #controls {
+            margin-bottom: 20px;
+            text-align: center;
+            background-color: rgba(0, 0, 0, 0.5);
+            padding: 10px;
+            border-radius: 10px;
+        }
+        #grid {
+            display: grid;
+            gap: 4px;
+            padding: 15px;
+            background-color: rgba(46, 46, 62, 0.8);
+            border: 2px solid #45455e;
+            border-radius: 8px;
+        }
+        .cell {
+            width: 45px;
+            height: 45px;
+            background-color: #3c3c4d;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 24px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            border: 2px solid #2a2a3d;
+        }
+        .cell.locked {
+            cursor: not-allowed;
+            background-color: #2c2c3e;
+        }
+        .cell.red {
+            background-color: #ff4d4d;
+        }
+        .cell.blue {
+            background-color: #4d79ff;
+        }
+        .cell.green {
+            background-color: #33cc33;
+        }
+        .cell.gold {
+            background-color: #ffcc00;
+        }
+        .cell.last-play {
+            box-shadow: 0 0 12px 6px rgba(255, 255, 255, 0.5);
+        }
+        .winner {
+            font-size: 28px;
+            color: #ffcc00;
+            margin-top: 20px;
+        }
+        .turn {
+            font-size: 20px;
+            color: #ddd;
+            margin-bottom: 10px;
+        }
+        .stats {
+            font-size: 16px;
+            margin-top: 10px;
+            color: #aaa;
+        }
+        .disabled {
+            background-color: #555;
+            cursor: not-allowed;
+            opacity: 0.7;
+            border: 2px dashed #888;
+        }
+    </style>
+</head>
+<body>
+    <div id="controls">
+        <label for="grid-size">Tamaño del mapa:</label>
+        <select id="grid-size">
+            <option value="9x9">9x9</option>
+            <option value="13x13">13x13</option>
+            <option value="15x15">15x15</option>
+            <option value="20x20">20x20</option>
+        </select>
+        <label for="players">Jugadores:</label>
+        <select id="players">
+            <option value="2">2</option>
+            <option value="3">3</option>
+            <option value="4">4</option>
+            <option value="5">5</option>
+        </select>
+        <br><br>
+        <!-- Configuración para colores y letras personalizadas -->
+        <label for="player1-color">Color Jugador 1:</label>
+        <select id="player1-color">
+            <option value="red">Rojo</option>
+            <option value="blue">Azul</option>
+            <option value="green">Verde</option>
+            <option value="gold">Dorado</option>
+        </select>
+        <label for="player1-letter">Letra Jugador 1:</label>
+        <input type="text" id="player1-letter" maxlength="1" value="X">
+        <br>
+        <label for="player2-color">Color Jugador 2:</label>
+        <select id="player2-color">
+            <option value="red">Rojo</option>
+            <option value="blue">Azul</option>
+            <option value="green">Verde</option>
+            <option value="gold">Dorado</option>
+        </select>
+        <label for="player2-letter">Letra Jugador 2:</label>
+        <input type="text" id="player2-letter" maxlength="1" value="O">
+        <br>
+        <label for="player3-color">Color Jugador 3:</label>
+        <select id="player3-color">
+            <option value="red">Rojo</option>
+            <option value="blue">Azul</option>
+            <option value="green">Verde</option>
+            <option value="gold">Dorado</option>
+        </select>
+        <label for="player3-letter">Letra Jugador 3:</label>
+        <input type="text" id="player3-letter" maxlength="1" value="A">
+        <br>
+        <label for="player4-color">Color Jugador 4:</label>
+        <select id="player4-color">
+            <option value="red">Rojo</option>
+            <option value="blue">Azul</option>
+            <option value="green">Verde</option>
+            <option value="gold">Dorado</option>
+        </select>
+        <label for="player4-letter">Letra Jugador 4:</label>
+        <input type="text" id="player4-letter" maxlength="1" value="B">
+        <br><br>
+        <button onclick="startGame()">Iniciar Juego</button>
+    </div>
+    <div id="turn-display" class="turn">Turno de: <span id="current-player">Jugador 1</span></div>
+    <div id="grid"></div>
+    <div id="stats" class="stats"></div>
+    <div id="winner-display" class="winner"></div>
+
+    <script>
+        let gridElement, grid, currentPlayer, playerMoves, totalMoves, currentPlayerElement, lastPlayElement;
+        let gridSize, turnDisplay, winnerDisplay;
+        let colors, letters, playersCount;
+        let timer, timeLeft;
+
+        function startGame() {
+            // Configuración de jugadores y colores/letras
+            playersCount = parseInt(document.getElementById('players').value);
+            colors = [];
+            letters = [];
+            for (let i = 1; i <= playersCount; i++) {
+                colors.push(document.getElementById(`player${i}-color`).value);
+                letters.push(document.getElementById(`player${i}-letter`).value.toUpperCase());
+            }
+
+            initGame();
+        }
+
+        function initGame() {
+            document.getElementById('controls').style.display = 'none';
+            gridElement = document.getElementById('grid');
+            gridSize = document.getElementById('grid-size').value;
+            currentPlayer = 0;
+            currentPlayerElement = document.getElementById('current-player');
+            playerMoves = Array(playersCount).fill(0);
+            totalMoves = 0;
+            winnerDisplay = document.getElementById('winner-display');
+            winnerDisplay.innerHTML = '';
+            lastPlayElement = null;
+
+            grid = createGrid(gridSize);
+            drawGrid(grid);
+            placeDisabledCells();
+            updateTurnDisplay();
+            updateStats();
+            startTurnTimer();
+        }
+
+        function createGrid(size) {
+            const [cols, rows] = size.split('x').map(Number);
+            return Array.from({ length: rows }, () => Array(cols).fill(null));
+        }
+
+        function drawGrid(grid) {
+            gridElement.innerHTML = '';
+            gridElement.style.gridTemplateColumns = `repeat(${grid[0].length}, 1fr)`;
+
+            grid.forEach((row, rowIndex) => {
+                row.forEach((cell, colIndex) => {
+                    const cellElement = document.createElement('div');
+                    cellElement.className = 'cell';
+                    cellElement.addEventListener('click', () => markCell(rowIndex, colIndex));
+                    gridElement.appendChild(cellElement);
+                });
+            });
+        }
+
+        function placeDisabledCells() {
+            // Deshabilitar entre 15% y 35% de las celdas
+            const totalDisabled = Math.floor(grid.length * grid[0].length * (Math.random() * 0.2 + 0.15));
+            for (let i = 0; i < totalDisabled; i++) {
+                const row = Math.floor(Math.random() * grid.length);
+                const col = Math.floor(Math.random() * grid[0].length);
+                grid[row][col] = 'disabled';
+                const cellElement = gridElement.children[row * grid[0].length + col];
+                cellElement.classList.add('disabled');
+            }
+        }
+
+        function markCell(row, col) {
+            if (grid[row][col] !== null || !isValidMove(row, col)) {
+                alert('¡Movimiento inválido!');
+                return;
+            }
+
+            grid[row][col] = currentPlayer;
+            playerMoves[currentPlayer]++;
+            totalMoves++;
+
+            // Resaltar la última jugada
+            if (lastPlayElement) {
+                lastPlayElement.classList.remove('last-play');
+            }
+            const cellElement = gridElement.children[row * grid[0].length + col];
+            cellElement.classList.add(colors[currentPlayer]);
+            cellElement.innerHTML = letters[currentPlayer];
+            cellElement.classList.add('locked');
+            cellElement.classList.add('last-play');
+            lastPlayElement = cellElement;
+
+            if (checkWinner()) {
+                announceWinner();
+                return;
+            }
+
+            endTurn();
+        }
+
+        function endTurn() {
+            currentPlayer = (currentPlayer + 1) % playersCount;
+            updateTurnDisplay();
+            startTurnTimer();
+        }
+
+        function isValidMove(row, col) {
+            const neighbors = [
+                [0, 1], [1, 0], [0, -1], [-1, 0], [-1, -1], [-1, 1], [1, -1], [1, 1]
+            ];
+
+            for (const [dx, dy] of neighbors) {
+                const newRow = row + dx;
+                const newCol = col + dy;
+                if (grid[newRow] && grid[newRow][newCol] !== null && grid[newRow][newCol] !== currentPlayer && grid[newRow][newCol] !== 'disabled') {
+                    return false;
+                }
+            }
+            return true;
+        }
+
+        function updateTurnDisplay() {
+            currentPlayerElement.textContent = `Jugador ${currentPlayer + 1}`;
+        }
+
+        function updateStats() {
+            let statsText = '';
+            for (let i = 0; i < playersCount; i++) {
+                statsText += `Jugador ${i + 1}: ${playerMoves[i]} casillas marcadas. `;
+            }
+            document.getElementById('stats').textContent = statsText;
+        }
+
+        function checkWinner() {
+            const emptyCells = grid.flat().filter(cell => cell === null).length;
+            if (emptyCells === 0) return true;  // Todos los casilleros están ocupados.
+
+            return false;
+        }
+
+        function announceWinner() {
+            const maxMoves = Math.max(...playerMoves);
+            const winner = playerMoves.indexOf(maxMoves) + 1;
+            winnerDisplay.innerHTML = `¡Jugador ${winner} ha ganado con ${maxMoves} casillas marcadas!`;
+            clearTimeout(timer);  // Detener el temporizador
+        }
+
+        function startTurnTimer() {
+            timeLeft = 15;  // Tiempo por turno en segundos
+            timer = setInterval(() => {
+                if (timeLeft <= 0) {
+                    clearInterval(timer);
+                    endTurn();  // Si se acaba el tiempo, pasar el turno
+                } else {
+                    timeLeft--;
+                }
+            }, 1000);
+        }
+    </script>
+</body>
+</html>
